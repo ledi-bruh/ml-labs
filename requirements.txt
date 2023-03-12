@@ -1,5 +1,6 @@
 notebook
 scikit-learn
+imbalanced-learn
 pandas
 matplotlib
 seaborn
