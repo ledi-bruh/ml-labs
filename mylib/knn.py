@@ -19,10 +19,8 @@ class KnnClassifier:
         
         types = {}
         for neighbor in neighbors:
-            if (t := self.y_train[np.where(np.all(self.X_train == neighbor, axis=1))[0][0]]) in types:
-                types[t] += 1
-            else:
-                types[t] = 1
+            type = self.y_train[np.where(np.all(self.X_train == neighbor, axis=1))[0][0]]
+            types[type] = types.setdefault(type, 0) + 1
         
         return max(types.items(), key=lambda x: x[1])[0]
     

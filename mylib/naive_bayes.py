@@ -10,12 +10,12 @@ class NaiveBayes:
         X_train = np.array(X_train)
         y_train = np.array(y_train)
         
-        self.p_classes = {k: v/len(y_train) for k, v in zip(*np.unique(y_train, return_counts=True))}
-        self.mean_std_for_classes = {
-            _: {
-                'mean': np.mean((tmp := X_train[np.where(np.in1d(y_train, _))]), axis=0),
-                'std': np.std(tmp, axis=0)
-            } for _ in self.p_classes.keys()
+        self.p_classes = {
+            k: {
+                'p_class': v/len(y_train),
+                'mean': np.mean((tmp := X_train[np.where(np.in1d(y_train, k))]), axis=0),
+                'std': np.std(tmp, axis=0),
+            } for k, v in zip(*np.unique(y_train, return_counts=True))
         }
         
         return self
@@ -26,7 +26,7 @@ class NaiveBayes:
         
         return np.argmax(tuple(zip(
             np.prod(
-                f(np.array(X_test), self.mean_std_for_classes[_cls]['mean'], self.mean_std_for_classes[_cls]['std']) * self.p_classes[_cls],
+                f(np.array(X_test), self.p_classes[_cls]['mean'], self.p_classes[_cls]['std']) * self.p_classes[_cls]['p_class'],
                 axis=1
-            ) for _cls in sorted(self.mean_std_for_classes.keys())
+            ) for _cls in sorted(self.p_classes.keys())
         )), axis=0)[0]

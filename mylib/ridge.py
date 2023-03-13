@@ -3,17 +3,20 @@ from scipy.misc import derivative
 from mylib.metrics import Metrics
 
 class Ridge:
-    def __init__(self, X_train: np.ndarray, y_train: np.ndarray, alpha: int, eps: float = 0.01):
+    def __init__(self, X_train: np.ndarray, y_train: np.ndarray, alpha: int, y_test, X_test, eps: float = 0.01):
         self.X: np.ndarray = np.c_[np.ones(X_train.shape[0]), X_train]
         self.y: np.ndarray = y_train
         self.l, self.d = self.X.shape
         self.alpha: float = alpha
         self.w: np.ndarray = np.zeros((self.d,))
         self.eps = eps
+        
+        self.y_test = y_test
+        self.X_test = X_test
     
     def fit(self):
-        self.alg_method()
-        # self.gradient_descent()
+        # self.alg_method()
+        self.gradient_descent()
     
     def predict(self, X) -> np.ndarray:
         return np.dot(X, self.w)
@@ -35,14 +38,13 @@ class Ridge:
     #     )
     
     def temp_res(self, w):
-        return None
         def score(y_test, y_pred):
             def MSE() -> float:
                 return 1/len(y_pred) * np.sum((y_test-y_pred)**2)
             
             return 1 - MSE() * len(y_pred) / np.sum((y_test- np.mean(y_test))**2)
         
-        return score(self.y_test, np.dot(self.X_test, w))
+        return score(self.y_test, self.X_test.dot(w))
     
     def gradient_descent(self) -> None:
         """Метод градиентного спуска"""
@@ -50,27 +52,27 @@ class Ridge:
         def grad(w: np.ndarray, X: np.ndarray, y: np.ndarray) -> np.ndarray:
             return np.array([-2/self.l*( sum(X[j, i]*(y[j] - np.dot(w, X[j])) for j in range(self.l)) - self.alpha*w[i] ) for i in range(self.d)])
         
-        k = 0.5
-        t = 15000
+        k = 1
+        t = 1
         nu = k / t
         w = self.w
-        w = np.array([0.0006092385244053693,
- 0.0046225533382514,
- 0.00023502487792770354,
- 0.00017852134576287705,
- 0.0017674952450035745,
- 3.749354575230174e-05,
- 0.010879119419118774,
- 0.035778443300405326,
- 0.0006056402239344057,
- 0.001985168044996785,
- 0.0003475593979131137,
- 0.00673558706528759,
- 0.0002942681389635051])
+#         w = np.array([0.0006092385244053693,
+#  0.0046225533382514,
+#  0.00023502487792770354,
+#  0.00017852134576287705,
+#  0.0017674952450035745,
+#  3.749354575230174e-05,
+#  0.010879119419118774,
+#  0.035778443300405326,
+#  0.0006056402239344057,
+#  0.001985168044996785,
+#  0.0003475593979131137,
+#  0.00673558706528759,
+#  0.0002942681389635051])
         w_next = w - nu * grad(w, self.X, self.y)
-        while t < 15000: # (buf := np.sum((w_next - w)**2)) >= self.eps and
-            if t % 10 == 0:
-                print(f'Epoch {t}:\tR^2: {self.temp_res(w_next)}')  # \t{buf}
+        while t < 5000: # (buf := np.sum((w_next - w)**2)) >= self.eps and
+            if t % 50 == 0:
+                print(f'Iter {t}\tR^2: {self.temp_res(w_next)}')  # \t{buf}
             nu = k / t
             w_next = w - nu * grad(w, self.X, self.y)
             t += 1
