@@ -3,7 +3,6 @@ from math import sqrt
 
 
 class NaiveBayes:
-    mean_std_for_classes: dict
     p_classes: dict
     
     def fit(self, X_train, y_train):
@@ -26,7 +25,8 @@ class NaiveBayes:
         
         return np.argmax(tuple(zip(
             np.prod(
-                f(np.array(X_test), self.p_classes[_cls]['mean'], self.p_classes[_cls]['std']) * self.p_classes[_cls]['p_class'],
+                f(np.array(X_test), self.p_classes[_cls]['mean'], self.p_classes[_cls]['std']),
                 axis=1
-            ) for _cls in sorted(self.p_classes.keys())
+            ) * self.p_classes[_cls]['p_class'] for _cls in sorted(self.p_classes.keys())
+            # ! почему [*p_class] не повлияло на результат, даже с [*1] или [*1/p_class]
         )), axis=0)[0]
