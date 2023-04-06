@@ -5,3 +5,7 @@ pandas
 matplotlib
 seaborn
 tensorflow
+xgboost
+catboost
+statsmodels
+pmdarima
