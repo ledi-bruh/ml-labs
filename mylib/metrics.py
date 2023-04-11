@@ -4,8 +4,8 @@ from math import sqrt
 
 class Metrics():
     def __init__(self, y_test: np.ndarray, y_pred: np.ndarray):
-        self.y_test = y_test,
-        self.y_pred = y_pred
+        self.y_test = np.array(y_test),
+        self.y_pred = np.array(y_pred)
 
     def __call__(self) -> None:
         print(
