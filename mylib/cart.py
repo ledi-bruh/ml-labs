@@ -17,7 +17,7 @@ class Node:
         self.right: object = None
         self.score: float  # MSE / Gini
         self.value: dict = {
-            'value': None,
+            'res': None,
             'predictor': None
         }
 
@@ -46,8 +46,7 @@ class CART:
             return node.value['res']
         if x[node.value['predictor']['j']] <= node.value['predictor']['t']:
             return self.__find(x, node.left)
-        else:
-            return self.__find(x, node.right)
+        return self.__find(x, node.right)
 
     def build_tree(self, data: np.ndarray, max_depth: int, criterion: Callable, depth: int = 0) -> Node:
         node = Node()
@@ -75,7 +74,7 @@ class CART:
                 'j': None,
             },
         }
-        for j in range(nj - 1):
+        for j in range(nj - 1):  # ?
             for i in range(ni):
                 data_left, data_right = self.__split(data[i, j], j, data)
                 if 0 in (len(data_left), len(data_right)):
