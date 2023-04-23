@@ -1,67 +1,10 @@
 import numpy as np
-from scipy.special import expit
 from typing import List, Tuple, Iterable
-
-
-def softmax(x):
-    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
-    return e_x / np.sum(e_x, axis=1, keepdims=True)
-
-def softmax_diff(x):
-    f = softmax(x) / x.shape[1]**2
-    return f / (1 - f)
-
-
-class Layer:
-    def __init__(self, output_dim: int, activation: str, input_dim: int = None):
-        func = {
-            'relu': {
-                'self': lambda x: np.where(x > 0, x, 0),
-                'diff': lambda x: np.where(x > 0, 1, 0),
-            },
-            'leaky_relu': {
-                'self': lambda x: np.where(x > 0, x, 0.01 * x),
-                'diff': lambda x: np.where(x > 0, 1, 0.01),
-            },
-            'sigmoid': {
-                'self': lambda x: expit(x),
-                'diff': lambda x: expit(x) * (1 - expit(x)),
-            },
-            'softmax': {
-                'self': lambda x: softmax(x),
-                'diff': lambda x: softmax_diff(x),
-            },
-            'tanh': {
-                'self': lambda x: np.tanh(x),
-                'diff': lambda x: 1. - np.tanh(x)**2,
-            },
-        }
-        self.output_dim = output_dim
-        self.activation: dict = func[activation]  # activation = f1(T) -- функция активации
-        self.input_dim = input_dim
-        self.H0 = None                            # H0 @ W1 + b1 = T1
-        self.T = None                             # f1(T1) = H1
-        self.W = None
-        self.b = None
-
-    def __forward(self, X: np.ndarray) -> np.ndarray:
-        self.H0 = X
-        self.T = self.H0 @ self.W + self.b
-        return self.activation['self'](self.T)      # return H1
-
-    def __backward(self, dE_dh: np.ndarray, alpha: float = 0.01) -> np.ndarray:
-        dh_dt = self.activation['diff'](np.mean(self.T, axis=0, keepdims=True))
-        dE_dt = dE_dh * dh_dt
-
-        dE_db = dE_dt
-        self.b -= alpha * dE_db
-
-        meanH0 = np.mean(self.H0, axis=0, keepdims=True)
-        dE_dW = (meanH0.T @ dE_dt)
-        self.W -= alpha * dE_dW
-
-        dE_dH0 = dE_dt @ self.W.T
-        return dE_dH0
+from mylib.layer.layer import Layer
+from mylib.functions.loss import mse
+from mylib.functions.loss import sparse_categorical_crossentropy as sc_ce
+from mylib.optimizer.base_optimizer import BaseOptimizer
+from mylib.optimizer.SGD import SGD
 
 
 class Perceptron:
@@ -69,26 +12,22 @@ class Perceptron:
         if layers[0].input_dim is None:
             raise Exception('Не задана входная размерность')
         self.layers = layers
+        self.optimizer = None
         self.loss = None
         self.func = {
-            'mse': {
-                'self': lambda true, pred: 0.5 * (pred - true)**2,
-                'diff': lambda true, pred: pred - true,
-            },
-            'sparse_categorical_crossentropy': {
-                'self': lambda true, pred: np.sum(-(true * np.where(pred == 0, -1, np.log(pred))), axis=1, keepdims=True),  # ln(0) = 0
-                'diff': lambda true, pred: np.sum(-(true / np.where(pred == 0, -1, pred)), axis=1, keepdims=True),
-            },
+            'mse': {'self': mse.self, 'diff': mse.diff},
+            'sparse_categorical_crossentropy': {'self': sc_ce.self, 'diff': sc_ce.diff},
         }
 
-    def compile(self, loss: str):
+    def compile(self, optimizer: BaseOptimizer = SGD(), loss: str = 'mse'):
+        self.optimizer = optimizer
         self.loss = loss
         input_dim = self.layers[0].input_dim
 
         for layer in self.layers:
             output_dim = layer.output_dim
             layer.W = np.random.randn(input_dim, output_dim)
-            layer.b = np.ones(output_dim, dtype=float)[np.newaxis, :]
+            layer.b = np.zeros(output_dim, dtype=float)[np.newaxis, :]
             input_dim = output_dim
 
         return self
@@ -103,7 +42,7 @@ class Perceptron:
         eye = np.eye(n_classes)
         return np.array([eye[y[i]] for i in range(y.shape[0])])
 
-    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 1, batch_size: int = None, alpha: float = 1, verbose: bool = False):
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 1, batch_size: int = None, verbose: bool = False):
         for _ in range(epochs):
             if verbose:
                 print(f'epoch {_ + 1}/{epochs}')
@@ -113,7 +52,7 @@ class Perceptron:
                     y_true = self._one_hot_y(y_batch, n_classes=y_pred.shape[1])
                 else:
                     y_true = y_batch.reshape(-1, 1)
-                self.__backward(y_true=y_true, y_pred=y_pred, layers=self.layers, alpha=alpha, verbose=verbose)
+                self.__backward(y_true=y_true, y_pred=y_pred, layers=self.layers, verbose=verbose)
 
         return self
 
@@ -123,16 +62,36 @@ class Perceptron:
     def __forward(self, X: np.ndarray, layers: List[Layer]) -> np.ndarray:
         pred = X
         for layer in layers:
-            pred = layer.__forward(pred)
+            layer.H0 = pred
+            layer.T = layer.H0 @ layer.W + layer.b
+            pred = layer.activation['self'](layer.T)
         return pred
 
-    def __backward(self, y_true: np.ndarray, y_pred: np.ndarray, layers: List[Layer], alpha=0.01, verbose=False):
+    def __backward(self, y_true: np.ndarray, y_pred: np.ndarray, layers: List[Layer], verbose=False):
         if verbose:
             print('loss:', np.sum(self.func[self.loss]['self'](y_true, y_pred)) / y_true.shape[0])
         dE_dh = np.mean(self.func[self.loss]['diff'](y_true, y_pred), axis=0)
-        dE_dh = dE_dh[np.newaxis, :]
+        dE_dH0 = dE_dh[np.newaxis, :]
+        
+        grad_W = []
+        grad_b = []
+
         for layer in layers[::-1]:
-            dE_dh = layer.__backward(dE_dh, alpha=alpha)
+            dh_dt = layer.activation['diff'](np.mean(layer.T, axis=0, keepdims=True))
+            dE_dt = dE_dH0 * dh_dt
+
+            dE_db = dE_dt
+            # layer.b -= alpha * dE_db
+            grad_b.insert(0, dE_db)
+
+            meanH0 = np.mean(layer.H0, axis=0, keepdims=True)
+            dE_dW = (meanH0.T @ dE_dt)
+            # layer.W -= alpha * dE_dW
+            grad_W.insert(0, dE_dW)
+
+            dE_dH0 = dE_dt @ dE_dW.T
+        
+        self.optimizer.optimize(self.layers, grad_W, grad_b)
 
 
 # X = np.array([
