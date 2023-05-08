@@ -1,9 +1,10 @@
-from mylib.functions.activation import relu, leaky_relu, sigmoid, softmax, tanh
+from mylib.functions.activation import relu, leaky_relu, sigmoid, softmax, tanh, linear
 
 
 class Layer:
     def __init__(self, output_dim: int, activation: str, input_dim: int = None):
         func = {
+            'linear': {'self': linear.self, 'diff': linear.diff},
             'relu': {'self': relu.self, 'diff': relu.diff},
             'leaky_relu': {'self': leaky_relu.self, 'diff': leaky_relu.diff},
             'sigmoid': {'self': sigmoid.self, 'diff': sigmoid.diff},

@@ -185,3 +185,4 @@ poetry.toml
 .ionide
 
 catboost_info/
+data/lab5*
