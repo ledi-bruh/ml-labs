@@ -42,17 +42,24 @@ class Perceptron:
         eye = np.eye(n_classes)
         return np.array([eye[y[i]] for i in range(y.shape[0])])
 
-    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 1, batch_size: int = None, verbose: bool = False):
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 1, batch_size: int = None, verbose: bool = False, return_loss: bool = False):
+        losses = []
         for _ in range(epochs):
             if verbose:
                 print(f'epoch {_ + 1}/{epochs}')
+            loss_epoch = 0
             for X_batch, y_batch in self._batch_split(X, y, batch_size=batch_size):
                 y_pred = self.__forward(X_batch, self.layers)
                 if self.loss == 'sparse_categorical_crossentropy':
                     y_true = self._one_hot_y(y_batch, n_classes=y_pred.shape[1])
                 else:
                     y_true = y_batch.reshape(-1, 1)
-                self.__backward(y_true=y_true, y_pred=y_pred, layers=self.layers, verbose=verbose)
+                batch_loss = self.__backward(y_true=y_true, y_pred=y_pred, layers=self.layers, verbose=verbose)
+                loss_epoch += batch_loss
+            losses.append(loss_epoch)
+
+        if return_loss:
+            return losses
 
         return self
 
@@ -68,11 +75,14 @@ class Perceptron:
         return pred
 
     def __backward(self, y_true: np.ndarray, y_pred: np.ndarray, layers: List[Layer], verbose=False):
+        batch_loss = np.sum(self.func[self.loss]['self'](y_true, y_pred)) / y_true.shape[0]
+
         if verbose:
-            print('loss:', np.sum(self.func[self.loss]['self'](y_true, y_pred)) / y_true.shape[0])
+            print('loss:', batch_loss)
+
         dE_dh = np.mean(self.func[self.loss]['diff'](y_true, y_pred), axis=0)
         dE_dH0 = dE_dh[np.newaxis, :]
-        
+
         grad_W = []
         grad_b = []
 
@@ -92,6 +102,7 @@ class Perceptron:
             dE_dH0 = dE_dt @ dE_dW.T
         
         self.optimizer.optimize(self.layers, grad_W, grad_b)
+        return batch_loss
 
 
 # X = np.array([
