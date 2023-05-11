@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Tuple, Iterable
-from mylib.layer.layer import Layer
+from mylib.layer.base_layer import BaseLayer
 from mylib.functions.loss import mse
 from mylib.functions.loss import sparse_categorical_crossentropy as sc_ce
 from mylib.optimizer.base_optimizer import BaseOptimizer
@@ -8,7 +8,7 @@ from mylib.optimizer.SGD import SGD
 
 
 class Perceptron:
-    def __init__(self, layers: List[Layer]):
+    def __init__(self, layers: List[BaseLayer]):
         if layers[0].input_dim is None:
             raise Exception('Не задана входная размерность')
         self.layers = layers
@@ -25,10 +25,7 @@ class Perceptron:
         input_dim = self.layers[0].input_dim
 
         for layer in self.layers:
-            output_dim = layer.output_dim
-            layer.W = np.random.randn(input_dim, output_dim)
-            layer.b = np.zeros(output_dim, dtype=float)[np.newaxis, :]
-            input_dim = output_dim
+            input_dim = layer.compile(input_dim)
 
         return self
 
@@ -66,15 +63,13 @@ class Perceptron:
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.__forward(X, self.layers)
 
-    def __forward(self, X: np.ndarray, layers: List[Layer]) -> np.ndarray:
+    def __forward(self, X: np.ndarray, layers: List[BaseLayer]) -> np.ndarray:
         pred = X
         for layer in layers:
-            layer.H0 = pred
-            layer.T = layer.H0 @ layer.W + layer.b
-            pred = layer.activation['self'](layer.T)
+            pred = layer.forward(pred)
         return pred
 
-    def __backward(self, y_true: np.ndarray, y_pred: np.ndarray, layers: List[Layer], verbose=False):
+    def __backward(self, y_true: np.ndarray, y_pred: np.ndarray, layers: List[BaseLayer], verbose=False):
         batch_loss = np.sum(self.func[self.loss]['self'](y_true, y_pred)) / y_true.shape[0]
 
         if verbose:
@@ -87,19 +82,9 @@ class Perceptron:
         grad_b = []
 
         for layer in layers[::-1]:
-            dh_dt = layer.activation['diff'](np.mean(layer.T, axis=0, keepdims=True))
-            dE_dt = dE_dH0 * dh_dt
-
-            dE_db = dE_dt
-            # layer.b -= alpha * dE_db
+            dE_dH0, dE_dW, dE_db = layer.backward(dE_dH0)
             grad_b.insert(0, dE_db)
-
-            meanH0 = np.mean(layer.H0, axis=0, keepdims=True)
-            dE_dW = (meanH0.T @ dE_dt)
-            # layer.W -= alpha * dE_dW
             grad_W.insert(0, dE_dW)
-
-            dE_dH0 = dE_dt @ dE_dW.T
         
         self.optimizer.optimize(self.layers, grad_W, grad_b)
         return batch_loss
