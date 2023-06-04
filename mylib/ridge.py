@@ -15,8 +15,8 @@ class Ridge:
         self.X_test = X_test
     
     def fit(self):
-        # self.alg_method()
-        self.gradient_descent()
+        self.alg_method()
+        # self.gradient_descent()
     
     def predict(self, X) -> np.ndarray:
         return np.dot(X, self.w)
