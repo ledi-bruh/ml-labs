@@ -3,12 +3,13 @@ from math import sqrt
 
 
 class NaiveBayes:
-    p_classes: dict
-    
+    def __init__(self):
+        self.p_classes: dict = None
+
     def fit(self, X_train, y_train):
         X_train = np.array(X_train)
         y_train = np.array(y_train)
-        
+
         self.p_classes = {
             k: {
                 'p_class': v/len(y_train),
@@ -16,13 +17,13 @@ class NaiveBayes:
                 'std': np.std(tmp, axis=0),
             } for k, v in zip(*np.unique(y_train, return_counts=True))
         }
-        
+
         return self
-    
+
     def predict(self, X_test) -> np.ndarray:
         def f(x, u, o):
             return np.exp(- (x - u)**2 / (2 * o**2)) / (o * sqrt(2*np.pi))
-        
+
         return np.argmax(tuple(zip(
             np.prod(
                 f(np.array(X_test), self.p_classes[_cls]['mean'], self.p_classes[_cls]['std']),
