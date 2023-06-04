@@ -1,11 +1,11 @@
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from mylib.std_scaler import StdScaler
 
 
 class PCA:
     def __init__(self, n_components, scaler=None):
         self.n_components = n_components
-        self.scaler = StandardScaler() if scaler is None else scaler
+        self.scaler = StdScaler() if scaler is None else scaler
         self.X = None
         self.T = None
     
