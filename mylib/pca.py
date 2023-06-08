@@ -9,11 +9,14 @@ class PCA:
         self.X = None
         self.T = None
     
-    def fit_transform(self, X: np.ndarray) -> np.ndarray:
+    def fit_transform(self, X: np.ndarray, y) -> np.ndarray:
+        """
+        y is ignored
+        """
         self.X = self.scaler.fit_transform(X)
         cov_mx = np.cov(self.X.T)
         values, vectors = np.linalg.eig(cov_mx)
-        pairs = sorted(zip(values, vectors), reverse=True)[:self.n_components]
+        pairs = sorted(zip(values, vectors), key=lambda x: x[0], reverse=True)[:self.n_components]
         self.T = np.c_[[vector for _, vector in pairs]].T
         return self.X @ self.T
     
